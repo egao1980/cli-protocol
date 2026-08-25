@@ -4,6 +4,7 @@
   :author "egao1980"
   :license "MIT"
   :depends-on ("uiop")
+  :properties (:cl-repo (:ci (:with ("cli-backend-clingon" "cli-backend-adopt") :sources (("clingon" :ql) ("adopt" :ql) ("bobbin" :ql) ("split-sequence" :ql) ("cl-reexport" :ql) ("with-user-abort" :ql) ("rove" :ql)))))
   :serial t
   :pathname "src"
   :components ((:file "package")
