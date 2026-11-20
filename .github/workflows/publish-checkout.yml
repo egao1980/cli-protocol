@@ -3,6 +3,11 @@ name: Publish checkout
 on:
   workflow_dispatch:
     inputs:
+      system:
+        description: "ASDF system to publish (empty → discover from *.asd; set cli-backend-clingon / cli-backend-adopt for the backends)"
+        required: false
+        default: ""
+        type: string
       version:
         description: "OCI tag (empty → .asd :version)"
         required: false
@@ -18,6 +23,7 @@ jobs:
   publish:
     uses: egao1980/cl-repository/.github/workflows/publish-source.yml@main
     with:
+      system: ${{ inputs.system }}
       version: ${{ inputs.version }}
       packager-version: ${{ inputs.packager_version }}
     permissions:
