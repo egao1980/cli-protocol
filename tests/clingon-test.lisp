@@ -92,3 +92,14 @@
         (ok c)
         (ok (search "0.1.0" (get-output-stream-string out)))))))
 
+
+(deftest explicit-backend-argument
+  (let* ((backend (cli-backend-clingon:make-clingon-backend))
+         (opt (make-option :backend backend :name "x" :long "x" :kind :string :key :x))
+         (cmd (make-command :backend backend :name "app" :options (list opt)
+                            :handler (lambda (opts free) (declare (ignore free))
+                                       (get-option opts :x)))))
+    (ok (typep opt 'cli-option))
+    (ok (equal "v" (get-option (parse cmd '("--x" "v") :styles '(:posix)
+                                      :backend backend)
+                               :x)))))

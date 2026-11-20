@@ -1,5 +1,5 @@
 (defsystem "cli-protocol"
-  :version "0.2.0"
+  :version "0.2.1"
   :description "CLOS CLI parse/run protocol for cl-stack (POSIX ∪ PowerShell ∪ CMD argv)"
   :author "egao1980"
   :license "MIT"
