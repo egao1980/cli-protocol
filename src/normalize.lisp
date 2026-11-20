@@ -105,6 +105,22 @@
               ((string= tok "--")
                (setf end-opts t)
                (push tok out))
+              ;; POSIX --long VALUE / -s VALUE: a known value-taking
+              ;; option keeps its next token verbatim, even "-x" or "/x".
+              ((and (> (length tok) 2)
+                    (string= "--" tok :end2 2)
+                    (not (find #\= tok)))
+               (push tok out)
+               (when (and (< i n) (getf (long-meta (subseq tok 2)) :takes-value))
+                 (push (elt argv i) out)
+                 (incf i)))
+              ((and (= (length tok) 2)
+                    (char= (char tok 0) #\-)
+                    (char/= (char tok 1) #\-))
+               (push tok out)
+               (when (and (< i n) (getf (short-meta (char tok 1)) :takes-value))
+                 (push (elt argv i) out)
+                 (incf i)))
               ;; CMD slash: /v /Verbose /Count:3 /Count 3
               ((and allow-cmd
                     (> (length tok) 1)
@@ -120,8 +136,9 @@
                              (takes (takes-p meta t))
                              (val (or inline
                                       (when (and takes next
-                                                 (not (and (> (length next) 0)
-                                                           (member (char next 0) '(#\- #\/)))))
+                                                 (or meta
+                                                     (not (and (> (length next) 0)
+                                                               (member (char next 0) '(#\- #\/))))))
                                         (incf i)
                                         next))))
                         (setf out (emit-short ch val takes out))))
@@ -130,8 +147,9 @@
                              (takes (takes-p meta t))
                              (val (or inline
                                       (when (and takes next
-                                                 (not (and (> (length next) 0)
-                                                           (member (char next 0) '(#\- #\/)))))
+                                                 (or meta
+                                                     (not (and (> (length next) 0)
+                                                               (member (char next 0) '(#\- #\/))))))
                                         (incf i)
                                         next))))
                         (setf out (emit-long name val takes out))))))))
@@ -149,8 +167,9 @@
                         (next (when (< i n) (elt argv i)))
                         (val (or (%powershell-bool-token inline)
                                  (when (and takes (null inline) next
-                                            (not (and (> (length next) 0)
-                                                      (char= (char next 0) #\-))))
+                                            (or meta
+                                                (not (and (> (length next) 0)
+                                                          (char= (char next 0) #\-)))))
                                    (incf i)
                                    next))))
                    (cond

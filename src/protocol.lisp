@@ -38,10 +38,15 @@
 
 (defgeneric backend-parse (backend command argv)
   (:documentation "Parse POSIX ARGV → (values options-plist free-args).
-   OPTIONS-PLIST uses option :key keywords."))
+   OPTIONS-PLIST uses option :key keywords. A backend with built-in --help /
+   --version flags adds :HELP T / :VERSION T when they were given (on the
+   command or a parent) and neither prints nor exits."))
 
 (defgeneric backend-run (backend command argv)
-  (:documentation "Parse + invoke handler. Return handler value."))
+  (:documentation "Parse + invoke handler. Return handler value. Built-in
+   --help / --version: write the usage / version to *STANDARD-OUTPUT* and
+   signal CLI-HELP-REQUESTED / CLI-VERSION-REQUESTED (CLI-EXIT, code 0)
+   instead of calling the handler."))
 
 (defgeneric backend-format-usage (backend command &key stream styles)
   (:documentation "Write help to STREAM."))
