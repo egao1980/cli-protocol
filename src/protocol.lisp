@@ -51,19 +51,25 @@
 (defgeneric backend-format-usage (backend command &key stream styles)
   (:documentation "Write help to STREAM."))
 
+(defun %without-backend (keys)
+  "KEYS without the :BACKEND entry: the backend GFs take it as an argument,
+not as a keyword (#11)."
+  (loop for (k v) on keys by #'cddr
+        unless (eq k :backend) collect k and collect v))
+
 (defun make-option (&rest keys &key (backend *cli-backend*) &allow-other-keys)
   "Create a CLI-OPTION via BACKEND."
   (unless backend
     (error 'cli-usage-error
            :message "*cli-backend* unbound — load cli-backend-clingon"))
-  (apply #'backend-make-option backend keys))
+  (apply #'backend-make-option backend (%without-backend keys)))
 
 (defun make-command (&rest keys &key (backend *cli-backend*) &allow-other-keys)
   "Create a CLI-COMMAND via BACKEND."
   (unless backend
     (error 'cli-usage-error
            :message "*cli-backend* unbound — load cli-backend-clingon"))
-  (apply #'backend-make-command backend keys))
+  (apply #'backend-make-command backend (%without-backend keys)))
 
 (defun %collect-options (command)
   "Flatten options from COMMAND and its subcommands (for dialect index)."
