@@ -5,6 +5,9 @@
            #:cli-parse-error
            #:cli-usage-error
            #:cli-exit
+           #:cli-help-requested
+           #:cli-version-requested
+           #:cli-exit-command-name
            #:cli-error-message
            #:cli-exit-code
 

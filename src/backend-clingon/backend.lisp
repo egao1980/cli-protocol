@@ -46,6 +46,47 @@
                    :key k
                    :backend native)))
 
+(defclass %protocol-command (clingon:command)
+  ((builtin :initform nil :accessor %builtin-flags
+            :documentation "Plist (:help T / :version T) of the built-in
+flags given to this command in the last parse."))
+  (:documentation "clingon command whose built-in --help / --version are
+reported to cli-protocol instead of printing and exiting during the parse."))
+
+(defun %builtin-set-p (command key)
+  "T when the built-in flag KEY was given to COMMAND (read before
+FINALIZE-COMMAND: clingon's PRINT-USAGE re-initializes the command)."
+  (let ((opt (clingon:find-option :by-key command key)))
+    (and opt (clingon:option-is-set-p opt) t)))
+
+(defmethod clingon:finalize-command :around ((command %protocol-command))
+  (let ((out (make-string-output-stream))
+        (flags (append
+                (and (%builtin-set-p command :clingon.help.flag)
+                     (list :help t))
+                (and (%builtin-set-p command :clingon.version.flag)
+                     (list :version t)))))
+    (setf (%builtin-flags command) nil)
+    (handler-case
+        (let ((*standard-output* out))
+          (call-next-method))
+      (clingon:exit-error (e)
+        (progn
+          (cond
+            ((and flags (zerop (clingon:exit-error-code e)))
+             (setf (%builtin-flags command) flags)
+             command)
+            (t
+             (write-string (get-output-stream-string out))
+             (error e))))))))
+
+(defun %builtin-request (matched)
+  "→ (values FLAGS COMMAND): the built-in flags plist given on MATCHED or a
+parent command, and the native command they were given to."
+  (dolist (cmd (clingon:command-lineage matched) (values nil nil))
+    (when (and (typep cmd '%protocol-command) (%builtin-flags cmd))
+      (return (values (%builtin-flags cmd) cmd)))))
+
 (defun %native-options (options)
   (mapcar #'cli-option-backend options))
 
@@ -62,7 +103,7 @@
                              :subcommands subcommands
                              :handler handler))
          (native
-           (clingon:make-command
+           (make-instance '%protocol-command
             :name (string name)
             :description (or description "")
             :version (or version "0.0.0")
@@ -95,6 +136,10 @@
                (dolist (sub (cli-command-subcommands cmd))
                  (collect sub))))
       (collect command))
+    ;; Built-in --help / --version: reported as :help / :version keys.
+    (let ((flags (%builtin-request matched)))
+      (loop for (k v) on flags by #'cddr
+            do (setf opts (list* k v opts))))
     (values opts free)))
 
 (defmethod backend-run ((backend clingon-backend) (command cli-command) argv)
@@ -102,6 +147,16 @@
   (let* ((native (cli-command-backend command))
          (matched (clingon:parse-command-line native argv))
          (handler (clingon:command-handler matched)))
+    (multiple-value-bind (flags cmd) (%builtin-request matched)
+      (cond
+        ((getf flags :help)
+         (clingon:print-usage cmd *standard-output*)
+         (error 'cli-help-requested :command-name (clingon:command-full-name cmd)))
+        ((getf flags :version)
+         (let ((v (find-if #'clingon:command-version (clingon:command-lineage cmd))))
+           (when v (clingon:print-version v *standard-output*)))
+         (error 'cli-version-requested
+                :command-name (clingon:command-full-name cmd)))))
     (unless handler
       (error 'cli-usage-error
              :message (format nil "no handler for command ~a"
@@ -110,7 +165,6 @@
 
 (defmethod backend-format-usage ((backend clingon-backend) (command cli-command)
                                  &key (stream *standard-output*) styles)
-  (declare (ignore styles))
   (clingon:print-usage (cli-command-backend command) stream)
   (terpri stream)
   ;; Platform-relevant spellings hint
